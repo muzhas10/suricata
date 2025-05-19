@@ -1,0 +1,190 @@
+# 1. ICMP Echo Request Detection (Ping)
+alert icmp any any -> any any (msg:"ICMP Echo Request Detected"; priority:3; sid:1000001; rev:1;)
+
+# 2. Nmap SYN Scan Detection
+alert tcp any any -> any any (flags:S; msg:"Nmap SYN Scan Detected"; threshold:type threshold, track by_src, count 10, seconds 5; priority:2; sid:1000002; rev:1;)
+
+# 3. Nikto Web Scanner Detection
+alert http any any -> any any (msg:"Nikto Web Scanner Detected"; content:"Nikto"; http_user_agent; priority:2; sid:1000016; rev:1;)
+
+# 4. Dirb/DirBuster Scanner Detection
+alert http any any -> any any (msg:"Dirb Scanner Detected"; content:"DirBuster"; http_user_agent; priority:2; sid:1000017; rev:1;)
+
+# 5. Excessive HTTP Requests (Generic Web Scanner Behavior)
+alert http any any -> any any (msg:"Excessive HTTP Requests - Potential Scanner"; threshold:type threshold, track by_src, count 30, seconds 10; priority:2; sid:1000018; rev:1;)
+
+# 6. FTP Brute Force Detection
+alert tcp any any -> any 21 (msg:"FTP Brute Force Detected"; threshold:type threshold, track by_src, count 6, seconds 10; priority:2; sid:1000004; rev:1;)
+
+# 7. TCP SYN Flood (DoS)
+alert tcp any any -> any any (flags:S; msg:"Possible TCP SYN Flood DoS Attack"; threshold:type threshold, track by_src, count 100, seconds 3; priority:1; sid:1000011; rev:1;)
+
+# 8. Telnet Access Attempt
+alert tcp any any -> any 23 (msg:"Telnet Access Attempt Detected"; priority:2; sid:1000006; rev:1;)
+
+# 9. SSH Brute Force Detection
+alert tcp any any -> any 22 (msg:"SSH Brute Force Detected"; threshold:type threshold, track by_src, count 6, seconds 10; priority:2; sid:1000013; rev:1;)
+
+# 10. HTTP Login Brute Force Detection
+alert http any any -> any any (msg:"HTTP Login Brute Force Attempt Detected"; content:"POST"; http_method; threshold:type threshold, track by_src, count 10, seconds 5; priority:2; sid:1000014; rev:1;)
+Save changes and exit.
+
+Step 4: Configure Suricata 
+
+4.1. List your network interfaces:
+
+ip a
+Sample output.
+
+Note: Your network interface name may vary depending on your system. Be sure to use the correct interface name when editing the Suricata configuration file later in this lab. 
+
+
+4.2. Change the HOME_NET variable to 10.10.10.20/32. This changes the HOME_NET IP address to the IP address of your Ubuntu endpoint. In addition set the E
+
+sudo nano /etc/suricata/suricata.yaml
+
+
+4.3. Update the af-packet interface to match your Ubuntu endpoint's network interface. In the same file (/etc/suricata/suricata.yaml), change the interface to the ens33 in the af-packet section. Save and exit.
+
+
+
+Save the changes (CTRL + O)
+
+4.4. Disable Community Rules 
+
+Note: By default, Suricata reads rules from /var/lib/suricata/rules/suricata.rules. This file contains the active rule set downloaded using suricata-update. Community rules (like ET Open) are extremely useful and cover a wide range of threats, but they contain thousands of pre-written signatures, which can be overwhelming and hard to interpret at first.
+
+In this lab, we will focus on creating our own custom Suricata rules to build a strong understanding of how basic detection works. To keep things simple and clear, we will temporarily disable the default community rules that typically generate thousands of alerts using pre-written signatures. Instead, we’ll write and use only our own rules, placing them in the /etc/suricata/rules/ directory.
+
+This focused approach will help us master the essentials of how custom rules are structured, how they trigger alerts, and how Suricata responds without the noise. It’s a foundational step toward building confident detection skills in a real SOC environment.
+
+Modify the rule-files section in /etc/suricata/suricata.yaml file. Comment out all built-in or community rules and only enable the custom rule file as follows::
+
+
+
+Save changes and exit.
+
+4.5. Run the following to validate Suricata configuration
+
+sudo suricata -T -c /etc/suricata/suricata.yaml
+You should see a success as shown below:
+
+
+
+4.6. Enable Suricata to Start Automatically
+
+sudo systemctl enable suricata
+sudo systemctl start suricata
+4.7. Verify Suricata is running 
+
+sudo systemctl status suricata
+Ensure it says “active (running)”.
+
+
+
+Step 5: Monitor Alerts (Before Attacking) 
+
+4.1 Verify Logging Is Working
+
+Run:
+
+sudo tail -f /var/log/suricata/fast.log
+You should see no alerts yet > this confirms monitoring is ready.
+
+
+
+Step 6: Launch Attack Simulations from Kali-Linux
+
+After confirming Suricata is actively monitoring, simulate attacks to test the rules.
+
+6.1. NMAP Scan Simulation
+
+From Kali-Linux:
+
+nmap -sS 10.10.10.20 
+Sample output
+
+
+
+Switch to the Ubuntu ubuntu-agent VM (the IDS sensor) and verify that Suricata successfully detected the Nmap scan.
+Check the log file (/var/log/suricata/fast.log) for a corresponding alert. The following screenshot confirms that our IDS is actively monitoring and functioning as expected.
+
+Sample output
+
+
+
+Lab Evaluation Method 
+
+All labs in this course are evaluated in class through instructor observation, hands-on demonstration, or brief discussion.
+
+The instructor will review each student’s work during the lab session to verify task completion and understanding.
+
+Feedback will be provided as needed, and students will have the opportunity to ask questions or clarify their process.
+
+If the work is incomplete or not satisfactory, the instructor may ask the student to redo the lab.
+
+A redo opportunity is available only if the student attends the lab session and actively participates.
+
+Students are encouraged to ask for help. Doing so will not affect their evaluation.
+
+Please refer to the lab-specific rubric for detailed evaluation criteria.
+
+
+Hide Rubrics
+Rubric Name: Lab Assignment 3 Rubric
+Criteria	
+Excellent
+5 points
+Good
+3 points
+Try Again
+0 points
+Criterion Score
+Installed and configured Suricata successfully
+Suricata installed, correct interface configured, no errors on service restart
+
+Installed and configured with help or minor corrections    
+
+Installation incomplete or config incorrect; service fails to start    
+
+Score of Installed and configured Suricata successfully,/ 5
+Disabled all default/community rules
+All default rule sets disabled
+
+Some default rules remained or rule path misconfigured but corrected
+
+Default rules not removed or YAML broken; Suricata unable to load rules
+
+Score of Disabled all default/community rules,/ 5
+Created and activated custom detection rules
+Custom rules written and activated correctly, recognized by Suricata
+
+Rule written with syntax help; Suricata starts and loads rule properly
+
+Rule not working, invalid syntax, or not activated in config
+
+Score of Created and activated custom detection rules,/ 5
+Validated functionality using simulated attacks
+Alert triggered and verified in log
+
+Alert appears with retry or help; logs viewed correctly
+
+Alert not triggered or not located in logs; needs to retry simulation
+
+Score of Validated functionality using simulated attacks,/ 5
+Total
+Score of Lab Assignment 3 Rubric,/ 20
+Overall Score
+Completed Successfully
+10 points minimum
+Good
+6 points minimum
+Try again
+0 points minimum
+Submit Assignment
+Files to submit
+(0) file(s) to submit
+
+After uploading, you must click Submit to complete the submission.
+Comments
+
